@@ -1,0 +1,122 @@
+﻿@page "/subscribe"
+@using Sonrisa.Services
+@inject SubscriberService SubscriberService
+@rendermode InteractiveServer
+
+<PageTitle>Sonrisa - Notification Preferences</PageTitle>
+
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow-sm mt-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">News Notification Alert Setup</h4>
+            </div>
+            <div class="card-body">
+                @if (!string.IsNullOrEmpty(statusMessage))
+                {
+                    <div class="alert @statusCssClass alert-dismissible fade show" role="alert">
+                        @statusMessage
+                    </div>
+                }
+
+                <EditForm Model="model" OnValidSubmit="HandleSubmitAsync">
+                    <DataAnnotationsValidator />
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email Address</label>
+                        <InputText id="email" class="form-control" @bind-Value="model.Email" placeholder="user@example.com" @onblur="LookupExistingSubscriber" />
+                        <ValidationMessage For="() => model.Email" />
+                    </div>
+
+                    <div class="form-check mb-2">
+                        <InputCheckbox id="notifyEmail" class="form-check-input" @bind-Value="model.NotifyViaEmail" />
+                        <label class="form-check-label" for="notifyEmail">
+                            Receive Breaking News via Email
+                        </label>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <InputCheckbox id="notifySlack" class="form-check-input" @bind-Value="model.NotifyViaSlack" />
+                        <label class="form-check-label" for="notifySlack">
+                            Receive Breaking News via Slack
+                        </label>
+                    </div>
+
+                    @if (model.NotifyViaSlack)
+                    {
+                        <div class="mb-3 border p-3 rounded bg-light">
+                            <label for="slackWebhook" class="form-label">Slack Incoming Webhook URL</label>
+                            <InputText id="slackWebhook" class="form-control" @bind-Value="model.SlackWebhookUrl" placeholder="https://hooks.slack.com/services/..." />
+                            <small class="text-muted">Prepared for Slack dispatch integration.</small>
+                        </div>
+                    }
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary" disabled="@isProcessing">
+                            @(isProcessing ? "Saving..." : "Save Preferences")
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private SubscriptionModel model = new();
+    private string? statusMessage;
+    private string statusCssClass = "alert-info";
+    private bool isProcessing = false;
+
+    private async Task LookupExistingSubscriber()
+    {
+        if (string.IsNullOrWhiteSpace(model.Email)) return;
+
+        var existing = await SubscriberService.GetByEmailAsync(model.Email);
+        if (existing != null)
+        {
+            model.NotifyViaEmail = existing.NotifyViaEmail;
+            model.NotifyViaSlack = existing.NotifyViaSlack;
+            model.SlackWebhookUrl = existing.SlackWebhookUrl;
+            statusMessage = "Found existing subscription. Preferences loaded.";
+            statusCssClass = "alert-info";
+        }
+    }
+
+    private async Task HandleSubmitAsync()
+    {
+        isProcessing = true;
+        statusMessage = null;
+
+        await SubscriberService.SaveSubscriptionAsync(
+            model.Email,
+            model.NotifyViaEmail,
+            model.NotifyViaSlack,
+            model.SlackWebhookUrl
+        );
+
+        if (!model.NotifyViaEmail && !model.NotifyViaSlack)
+        {
+            statusMessage = "Unsubscribed successfully. Your record has been removed.";
+            statusCssClass = "alert-warning";
+        }
+        else
+        {
+            statusMessage = "Preferences saved successfully!";
+            statusCssClass = "alert-success";
+        }
+
+        isProcessing = false;
+    }
+
+    public class SubscriptionModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        public bool NotifyViaEmail { get; set; }
+        public bool NotifyViaSlack { get; set; }
+        public string? SlackWebhookUrl { get; set; }
+    }
+}

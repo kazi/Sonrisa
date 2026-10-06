@@ -10,25 +10,11 @@
 <PageTitle>Sonrisa - Admin Dashboard</PageTitle>
 
 <div class="container my-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2>Admin Dashboard</h2>
-            <span class="badge bg-success">Authenticated Admin Session</span>
-        </div>
-        <div class="d-flex gap-2">
-            <button class="btn btn-primary" @onclick="DispatchSlackAsync" disabled="@isDispatching">
-                @(isDispatching ? "Dispatching..." : "Trigger Slack Dispatch Now")
-            </button>
-            <!-- Invokes cookie revocation endpoint -->
-            <a href="/api/admin/logout" class="btn btn-outline-danger">Log Out</a>
-        </div>
-    </div>
-
     <div class="container my-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2>Admin Dashboard</h2>
-            <button class="btn btn-primary" @onclick="DispatchSlackAsync" disabled="@isDispatching">
-                @(isDispatching ? "Dispatching..." : "Trigger Slack Dispatch Now")
+            <button class="btn btn-primary" @onclick="DispatchNotificationsAsync" disabled="@isDispatching">
+                @(isDispatching ? "Dispatching..." : "Trigger Dispatches Now (Slack & Email)")
             </button>
         </div>
 
@@ -242,13 +228,13 @@
         await RefreshDataAsync();
     }
 
-    private async Task DispatchSlackAsync()
+    private async Task DispatchNotificationsAsync()
     {
         isDispatching = true;
         actionStatus = null;
 
-        int count = await DispatcherService.DispatchTopHeadlinesToSlackAsync(3);
-        actionStatus = $"Manual dispatch complete. Sent notifications to {count} subscriber(s).";
+        int count = await DispatcherService.DispatchTopHeadlinesAsync(3);
+        actionStatus = $"Manual dispatch complete. Delivered {count} notification(s) across Slack and Email channels.";
 
         await RefreshDataAsync();
         isDispatching = false;

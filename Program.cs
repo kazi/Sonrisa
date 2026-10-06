@@ -32,6 +32,7 @@ builder.Services.AddHttpClient<NewsApiService>(client =>
     client.DefaultRequestHeaders.Add("User-Agent", "BlazorNewsApp/1.0");
 });
 builder.Services.AddHttpClient<SlackNotificationService>();
+builder.Services.AddHttpClient<EmailNotificationService>();
 builder.Services.AddTransient<NotificationDispatcherService>();
 builder.Services.AddTransient<SubscriberService>();
 builder.Services.AddTransient<AdminService>();

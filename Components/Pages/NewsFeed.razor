@@ -2,6 +2,7 @@
 @using Sonrisa.Models
 @using Sonrisa.Services
 @inject NewsApiService NewsService
+@inject NotificationDispatcherService DispatcherService
 @rendermode InteractiveServer
 
 <PageTitle>Local Breaking News</PageTitle>
@@ -11,7 +12,17 @@
     <button class="btn btn-outline-secondary" @onclick="SyncNewsAsync" disabled="@isSyncing">
         @(isSyncing ? "Syncing..." : "Sync Latest Headlines")
     </button>
+    <button class="btn btn-outline-primary" @onclick="DispatchSlackAsync" disabled="@isDispatching">
+        @(isDispatching ? "Sending..." : "Dispatch to Slack Subscribers")
+    </button>
 </div>
+
+@if (!string.IsNullOrEmpty(dispatchStatus))
+{
+    <div class="alert alert-info mt-2 mb-0 py-2">
+        @dispatchStatus
+    </div>
+}
 
 @if (articles == null)
 {
@@ -52,6 +63,8 @@ else
 @code {
     private List<NewsArticle>? articles;
     private bool isSyncing = false;
+    private bool isDispatching = false;
+    private string? dispatchStatus;
 
     protected override async Task OnInitializedAsync()
     {
@@ -75,5 +88,16 @@ else
     private async Task RefreshLocalArticlesAsync()
     {
         articles = await NewsService.GetLocalArticlesAsync();
+    }
+
+    private async Task DispatchSlackAsync()
+    {
+        isDispatching = true;
+        dispatchStatus = null;
+
+        int notifiedCount = await DispatcherService.DispatchTopHeadlinesToSlackAsync(topCount: 3);
+        dispatchStatus = $"Successfully dispatched breaking news to {notifiedCount} Slack subscriber(s)!";
+
+        isDispatching = false;
     }
 }

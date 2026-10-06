@@ -15,8 +15,10 @@ builder.Services.AddHttpClient<NewsApiService>(client =>
     // NewsAPI accepts key either via query string or via User-Agent header
     client.DefaultRequestHeaders.Add("User-Agent", "BlazorNewsApp/1.0");
 });
-
+builder.Services.AddHttpClient<SlackNotificationService>();
+builder.Services.AddTransient<NotificationDispatcherService>();
 builder.Services.AddTransient<SubscriberService>();
+builder.Services.AddTransient<AdminService>();
 
 // Add services to the container.
 builder.Services.AddRazorComponents()

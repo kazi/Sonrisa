@@ -1,0 +1,238 @@
+﻿@page "/admin"
+@using Sonrisa.Models
+@using Sonrisa.Services
+@inject AdminService AdminService
+@inject NotificationDispatcherService DispatcherService
+@rendermode InteractiveServer
+
+<PageTitle>Sonrisa - Admin Dashboard</PageTitle>
+
+<div class="container my-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Admin Dashboard</h2>
+        <button class="btn btn-primary" @onclick="DispatchSlackAsync" disabled="@isDispatching">
+            @(isDispatching ? "Dispatching..." : "Trigger Slack Dispatch Now")
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(actionStatus))
+    {
+        <div class="alert alert-info alert-dismissible fade show" role="alert">
+            @actionStatus
+        </div>
+    }
+
+    @if (metrics != null)
+    {
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="card bg-light shadow-sm text-center p-3">
+                    <span class="text-muted small">Active Subscribers</span>
+                    <h3 class="mb-0 text-primary">@metrics.TotalActiveSubscribers</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light shadow-sm text-center p-3">
+                    <span class="text-muted small">Slack / Email Opt-ins</span>
+                    <h3 class="mb-0 text-dark">@metrics.SlackSubscribersCount / @metrics.EmailSubscribersCount</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light shadow-sm text-center p-3">
+                    <span class="text-muted small">Successful Dispatches</span>
+                    <h3 class="mb-0 text-success">@metrics.SuccessfulDispatches</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light shadow-sm text-center p-3">
+                    <span class="text-muted small">Failed Dispatches</span>
+                    <h3 class="mb-0 text-danger">@metrics.FailedDispatches</h3>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Tabbed Navigation -->
+    <ul class="nav nav-tabs mb-3" id="adminTab">
+        <li class="nav-item">
+            <button class="nav-link @(activeTab == "subscribers" ? "active" : "")" @onclick='() => SetTab("subscribers")'>
+                Subscribers Management
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link @(activeTab == "logs" ? "active" : "")" @onclick='() => SetTab("logs")'>
+                Delivery Logs
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    @if (activeTab == "subscribers")
+    {
+        <div class="card shadow-sm p-3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Subscribers</h5>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="showDeletedSwitch" @bind="showDeleted" @bind:after="LoadSubscribersAsync" />
+                    <label class="form-check-label" for="showDeletedSwitch">Include Unsubscribed/Deleted</label>
+                </div>
+            </div>
+
+            @if (subscribers == null)
+            {
+                <p><em>Loading subscribers...</em></p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Email</th>
+                                <th>Channels</th>
+                                <th>Created At</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var sub in subscribers)
+                            {
+                                <tr class="@(sub.IsDeleted ? "table-secondary text-muted" : "")">
+                                    <td>@sub.Email</td>
+                                    <td>
+                                        @if (sub.NotifyViaEmail)
+                                        {
+                                            <span class="badge bg-info text-dark me-1">Email</span>
+                                        }
+                                        @if (sub.NotifyViaSlack)
+                                        {
+                                            <span class="badge bg-primary">Slack</span>
+                                        }
+                                    </td>
+                                    <td>@sub.CreatedAt.ToString("g")</td>
+                                    <td>
+                                        @if (sub.IsDeleted)
+                                        {
+                                            <span class="badge bg-danger">Deleted</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-success">Active</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm @(sub.IsDeleted ? "btn-outline-success" : "btn-outline-danger")"
+                                                @onclick="() => ToggleSoftDeleteAsync(sub.Id)">
+                                            @(sub.IsDeleted ? "Restore" : "Soft Delete")
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    }
+    else if (activeTab == "logs")
+    {
+        <div class="card shadow-sm p-3">
+            <h5 class="mb-3">Recent Delivery Audit Logs</h5>
+            @if (logs == null)
+            {
+                <p><em>Loading logs...</em></p>
+            }
+            else if (!logs.Any())
+            {
+                <p class="text-muted">No delivery logs recorded yet.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped table-sm align-middle">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Channel</th>
+                                <th>Recipient</th>
+                                <th>Articles</th>
+                                <th>Status</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var log in logs)
+                            {
+                                <tr>
+                                    <td>@log.AttemptedAt.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                    <td><span class="badge bg-secondary">@log.ChannelType</span></td>
+                                    <td>@log.Recipient</td>
+                                    <td>@log.ArticleCount</td>
+                                    <td>
+                                        <span class="badge @(log.Status == "SUCCESS" ? "bg-success" : "bg-danger")">
+                                            @log.Status
+                                        </span>
+                                    </td>
+                                    <td class="small text-muted">@(log.ErrorMessage ?? "None")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private AdminMetrics? metrics;
+    private List<Subscriber>? subscribers;
+    private List<DeliveryLog>? logs;
+
+    private string activeTab = "subscribers";
+    private bool showDeleted = false;
+    private bool isDispatching = false;
+    private string? actionStatus;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshDataAsync();
+    }
+
+    private async Task SetTab(string tabName)
+    {
+        activeTab = tabName;
+        await RefreshDataAsync();
+    }
+
+    private async Task RefreshDataAsync()
+    {
+        metrics = await AdminService.GetMetricsAsync();
+        await LoadSubscribersAsync();
+        logs = await AdminService.GetRecentDeliveryLogsAsync();
+    }
+
+    private async Task LoadSubscribersAsync()
+    {
+        subscribers = await AdminService.GetAllSubscribersAsync(showDeleted);
+    }
+
+    private async Task ToggleSoftDeleteAsync(int id)
+    {
+        await AdminService.ToggleSubscriberSoftDeleteAsync(id);
+        await RefreshDataAsync();
+    }
+
+    private async Task DispatchSlackAsync()
+    {
+        isDispatching = true;
+        actionStatus = null;
+
+        int count = await DispatcherService.DispatchTopHeadlinesToSlackAsync(3);
+        actionStatus = $"Manual dispatch complete. Sent notifications to {count} subscriber(s).";
+
+        await RefreshDataAsync();
+        isDispatching = false;
+    }
+}

@@ -42,7 +42,10 @@ public class EmailNotificationService
 
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post, "https://send.api.mailtrap.io/api/send");
+            var inboxId = _config["Mailtrap:InboxId"];
+            var endpoint = $"https://sandbox.api.mailtrap.io/api/send/{inboxId}";
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
 
             // Set Bearer token authorization header as required by Mailtrap API v2
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiToken);

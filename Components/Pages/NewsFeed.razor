@@ -1,7 +1,8 @@
-﻿@page "/news"
+﻿@page "/"
 @using Sonrisa.Models
 @using Sonrisa.Services
 @inject NewsApiService NewsService
+@inject NotificationDispatcherService DispatcherService
 @rendermode InteractiveServer
 
 <PageTitle>Local Breaking News</PageTitle>
@@ -12,6 +13,13 @@
         @(isSyncing ? "Syncing..." : "Sync Latest Headlines")
     </button>
 </div>
+
+@if (!string.IsNullOrEmpty(dispatchStatus))
+{
+    <div class="alert alert-info mt-2 mb-0 py-2">
+        @dispatchStatus
+    </div>
+}
 
 @if (articles == null)
 {
@@ -52,6 +60,8 @@ else
 @code {
     private List<NewsArticle>? articles;
     private bool isSyncing = false;
+    private bool isDispatching = false;
+    private string? dispatchStatus;
 
     protected override async Task OnInitializedAsync()
     {

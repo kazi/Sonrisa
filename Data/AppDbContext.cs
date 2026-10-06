@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
 
     public DbSet<NewsArticle> NewsArticles => Set<NewsArticle>();
     public DbSet<Subscriber> Subscribers => Set<Subscriber>();
+    public DbSet<DeliveryLog> DeliveryLogs => Set<DeliveryLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -32,5 +33,8 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<Subscriber>()
             .HasQueryFilter(s => !s.IsDeleted);
+
+        modelBuilder.Entity<DeliveryLog>()
+            .HasIndex(l => new { l.Status, l.AttemptedAt });
     }
 }
